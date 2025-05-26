@@ -18,6 +18,7 @@
             z-index: 1060; min-width: 300px; max-width: 90%;
         }
         [dir="rtl"] #alertPlaceholderResumePage { left: auto; right: 1rem; }
+        .action-buttons-group button, .action-buttons-group input { margin-bottom: 0.5rem; margin-left: 0.5rem;}
     </style>
 </head>
 <body class="bg-light">
@@ -56,8 +57,8 @@
     let currentResumingClientId = null;
     let resumePollingIntervalId = null;
 
-
     function showAlert(message, type = 'success', placeholder = alertPlaceholderResumePage) {
+        // ... (کد تابع showAlert بدون تغییر باقی می‌ماند)
         const wrapper = document.createElement('div');
         wrapper.innerHTML = [
             `<div class="alert alert-${type} alert-dismissible fade show" role="alert" style="margin-bottom: 0.5rem;">`,
@@ -73,7 +74,7 @@
         }, 7000);
     }
 
-    function formatBytes(bytes, decimals = 2) {
+    function formatBytes(bytes, decimals = 2) { /* ... (کد تابع formatBytes بدون تغییر) ... */ 
         if (bytes === 0) return '0 Bytes';
         const k = 1024;
         const dm = decimals < 0 ? 0 : decimals;
@@ -81,6 +82,7 @@
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
     }
+
 
     async function fetchIncompleteUploads() {
         loadingMessageDiv.style.display = 'block';
@@ -109,6 +111,7 @@
                             <h5 class="card-title">${upload.video_title || 'بدون عنوان'} <small class="text-muted">(${upload.original_filename})</small></h5>
                             <p class="card-text mb-1">
                                 <small>شناسه آپلود: ${upload.client_upload_id}</small><br>
+                                <small>شناسه فایل آروان (TUS ID): ${upload.arvan_file_id || 'ایجاد نشده'}</small><br>
                                 <small>اندازه فایل: ${formatBytes(upload.total_filesize)}</small><br>
                                 <small>آخرین وضعیت: ${upload.status} (پیشرفت تخمینی: ${progressPercent}%)</small><br>
                                 ${upload.last_error_message ? `<small class="text-danger">آخرین خطا: ${upload.last_error_message}</small><br>` : ''}
@@ -116,17 +119,27 @@
                             </p>
                             <div class="mt-2 resume-form-container">
                                 <label for="file-${upload.client_upload_id}" class="form-label">برای ادامه، فایل اصلی را مجدداً انتخاب کنید:</label>
-                                <input type="file" class="form-control form-control-sm file-input-for-resume" id="file-${upload.client_upload_id}" accept="video/*">
-                                <button class="btn btn-primary btn-sm mt-2 resume-upload-btn" 
-                                        data-client-id="${upload.client_upload_id}"
-                                        data-original-filename="${upload.original_filename}"
-                                        data-total-filesize="${upload.total_filesize}"
-                                        data-channel-id="${upload.target_channel_id}"
-                                        data-video-title="${upload.video_title || ''}"
-                                        data-video-description="${upload.video_description || ''}"
-                                        disabled>
-                                    <i class="bi bi-play-fill"></i> ادامه آپلود
-                                </button>
+                                <div class="action-buttons-group d-flex flex-wrap align-items-center">
+                                    <input type="file" class="form-control form-control-sm file-input-for-resume flex-grow-1" style="max-width: 300px;" id="file-${upload.client_upload_id}" accept="video/*">
+                                    <button class="btn btn-primary btn-sm resume-upload-btn" 
+                                            data-client-id="${upload.client_upload_id}"
+                                            data-original-filename="${upload.original_filename}"
+                                            data-total-filesize="${upload.total_filesize}"
+                                            data-channel-id="${upload.target_channel_id}"
+                                            data-video-title="${upload.video_title || ''}"
+                                            data-video-description="${upload.video_description || ''}"
+                                            disabled>
+                                        <i class="bi bi-play-fill"></i> ادامه آپلود
+                                    </button>
+                                    ${upload.arvan_file_id ? // فقط اگر شناسه فایل آروان وجود دارد، دکمه حذف را نشان بده
+                                    `<button class="btn btn-danger btn-sm delete-tus-file-btn"
+                                            data-client-id="${upload.client_upload_id}"
+                                            data-arvan-file-id="${upload.arvan_file_id}"
+                                            data-original-filename="${upload.original_filename}"
+                                            title="حذف این آپلود ناتمام از سرور آروان و لیست">
+                                        <i class="bi bi-x-octagon"></i> حذف نهایی
+                                    </button>` : ''}
+                                </div>
                                 <div class="progress mt-2" style="display:none;">
                                     <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: ${progressPercent}%;" aria-valuenow="${progressPercent}" aria-valuemin="0" aria-valuemax="100">${progressPercent}%</div>
                                 </div>
@@ -145,6 +158,7 @@
         }
     }
 
+    // ... (کد تابع incompleteUploadsListDiv.addEventListener('change', ...) بدون تغییر باقی می‌ماند) ...
     incompleteUploadsListDiv.addEventListener('change', function(event) {
         if (event.target.classList.contains('file-input-for-resume')) {
             const fileInput = event.target;
@@ -154,7 +168,6 @@
                 const originalFilename = resumeBtn.dataset.originalFilename;
                 const totalFilesize = parseInt(resumeBtn.dataset.totalFilesize, 10);
 
-                // ساده‌ترین حالت: فقط چک کردن نام و اندازه. برای دقت بیشتر می‌توان تاریخ آخرین تغییر را هم چک کرد.
                 if (selectedFile.name === originalFilename && selectedFile.size === totalFilesize) {
                     resumeBtn.disabled = false;
                     fileInput.classList.remove('is-invalid');
@@ -173,9 +186,14 @@
         }
     });
 
+
     incompleteUploadsListDiv.addEventListener('click', async function(event) {
-        if (event.target.classList.contains('resume-upload-btn')) {
-            const btn = event.target;
+        const targetButton = event.target.closest('button');
+        if (!targetButton) return;
+
+        if (targetButton.classList.contains('resume-upload-btn')) {
+            // ... (کد مربوط به ادامه آپلود بدون تغییر باقی می‌ماند) ...
+            const btn = targetButton;
             const clientUploadId = btn.dataset.clientId;
             const channelId = btn.dataset.channelId;
             const videoTitle = btn.dataset.videoTitle;
@@ -198,10 +216,10 @@
             progressBarDiv.style.display = 'block';
             statusMessageDiv.textContent = 'در حال ارسال اطلاعات برای ادامه آپلود...';
 
-            currentResumingClientId = clientUploadId; // For polling
+            currentResumingClientId = clientUploadId; 
 
             const formData = new FormData();
-            formData.append('uploadId', clientUploadId); // This is the crucial client_upload_id
+            formData.append('uploadId', clientUploadId); 
             formData.append('videoFile', fileToUpload);
             formData.append('channelId', channelId);
             formData.append('title', videoTitle);
@@ -212,7 +230,7 @@
                 xhr.open('POST', 'arvan-direct-upload-proxy.php', true); //
                 
                 xhr.onload = function() {
-                    btn.disabled = false; // Re-enable button
+                    btn.disabled = false; 
                     btn.innerHTML = '<i class="bi bi-play-fill"></i> ادامه آپلود';
                     if (resumePollingIntervalId) { clearTimeout(resumePollingIntervalId); resumePollingIntervalId = null; }
 
@@ -226,7 +244,6 @@
                             progressBar.classList.remove('progress-bar-animated', 'bg-primary');
                             progressBar.classList.add('bg-success');
                             showAlert(`آپلود برای "${videoTitle}" با موفقیت ادامه یافت و تکمیل شد.`, 'success');
-                            // Optionally remove this item from list or mark as complete
                             btn.closest('.upload-item').remove(); 
                             if(incompleteUploadsListDiv.children.length === 0) {
                                 incompleteUploadsListDiv.innerHTML = '<p class="text-center text-muted">هیچ آپلود ناتمامی یافت نشد.</p>';
@@ -263,11 +280,83 @@
                 showAlert(`خطای پیش‌بینی نشده در شروع ادامه آپلود: ${error.message}`, 'danger');
                 console.error("Error resuming upload: ", error);
             }
+
+        } else if (targetButton.classList.contains('delete-tus-file-btn')) {
+            const clientUploadId = targetButton.dataset.clientId;
+            const arvanFileId = targetButton.dataset.arvanFileId;
+            const originalFilename = targetButton.dataset.originalFilename;
+
+            if (!arvanFileId || arvanFileId === 'null' || arvanFileId === 'undefined') {
+                showAlert('این آپلود هنوز در سرور آروان ایجاد نشده و فقط رکورد محلی آن قابل حذف است (در صورت نیاز). برای حذف، ابتدا باید یکبار تلاش برای ادامه آپلود انجام شود تا شناسه فایل آروان مشخص گردد یا از طریق دیتابیس مستقیما حذف شود.', 'info');
+                // یا می‌توانید یک گزینه برای حذف فقط رکورد دیتابیس اضافه کنید اگر arvan_file_id وجود ندارد
+                if(confirm(`آپلود "${originalFilename}" هنوز به سرور آروان ارسال نشده یا شناسه فایل آروان آن ثبت نشده است. آیا مایل به حذف رکورد این تلاش از لیست محلی هستید؟ (این عمل فایل را از آروان حذف نمی‌کند)`)){
+                     deleteLocalUploadAttempt(clientUploadId, originalFilename);
+                }
+                return;
+            }
+
+            if (confirm(`آیا از حذف نهایی آپلود ناتمام "${originalFilename}" (با شناسه فایل آروان: ${arvanFileId}) از سرور آروان و لیست محلی مطمئن هستید؟ این عملیات فایل را از سرور آروان نیز حذف می‌کند.`)) {
+                deleteTusFile(clientUploadId, arvanFileId, originalFilename, targetButton);
+            }
         }
     });
 
+    async function deleteTusFile(clientUploadId, arvanFileId, originalFilename, deleteButton) {
+        deleteButton.disabled = true;
+        deleteButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+        const itemDiv = document.getElementById(`upload-item-${clientUploadId}`);
+        const statusMessageDiv = itemDiv.querySelector('.status-message');
+        statusMessageDiv.textContent = `در حال ارسال درخواست حذف برای ${originalFilename}...`;
+
+        try {
+            const response = await fetch(`manage_tus_file_proxy.php?arvan_file_id=${arvanFileId}&client_upload_id=${clientUploadId}`, {
+                method: 'DELETE',
+                headers: { 'Accept': 'application/json' }
+            });
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || 'خطا در حذف فایل از سرور آروان یا دیتابیس محلی.');
+            }
+            showAlert(`آپلود ناتمام "${originalFilename}" با موفقیت از آروان و لیست محلی حذف شد.`, 'success');
+            deleteButton.closest('.upload-item').remove();
+             if(incompleteUploadsListDiv.children.length === 0) {
+                incompleteUploadsListDiv.innerHTML = '<p class="text-center text-muted">هیچ آپلود ناتمامی یافت نشد.</p>';
+            }
+
+        } catch (error) {
+            showAlert(`خطا در حذف آپلود ناتمام "${originalFilename}": ${error.message}`, 'danger');
+            statusMessageDiv.textContent = `خطا: ${error.message}`;
+            console.error('Error deleting TUS file:', error);
+            deleteButton.disabled = false;
+            deleteButton.innerHTML = '<i class="bi bi-x-octagon"></i> حذف نهایی';
+        }
+    }
+    
+    async function deleteLocalUploadAttempt(clientUploadId, originalFilename) {
+        // این تابع در صورتی فراخوانی می‌شود که arvan_file_id وجود نداشته باشد
+        // و فقط می‌خواهیم رکورد را از دیتابیس محلی (جدول upload_attempts) حذف کنیم.
+        // شما باید یک endpoint در manage_tus_file_proxy.php یا یک پروکسی جدید برای این کار ایجاد کنید
+        // که فقط رکورد دیتابیس را حذف کند و فایل persistent_temp_filepath را اگر وجود دارد.
+        // برای سادگی فعلا فقط پیام می‌دهیم و لیست را رفرش می‌کنیم.
+        console.log("درخواست حذف رکورد محلی برای client_upload_id:", clientUploadId);
+        showAlert(`برای حذف رکورد محلی "${originalFilename}" (بدون حذف از آروان)، نیاز به پیاده‌سازی سمت سرور است. در حال حاضر لیست رفرش می‌شود.`, 'info');
+        // به عنوان مثال، اگر یک endpoint برای این کار داشتید:
+        /*
+        try {
+            const response = await fetch(`manage_tus_file_proxy.php?action=delete_local_attempt&client_upload_id=${clientUploadId}`, {
+                method: 'DELETE', headers: { 'Accept': 'application/json' }
+            });
+            // ... handle response ...
+        } catch (error) { ... }
+        */
+        fetchIncompleteUploads(); // Refresh the list
+    }
+
+
+    // ... (کد تابع pollResumeProgress بدون تغییر باقی می‌ماند) ...
     function pollResumeProgress(clientUploadId, progressBarElem, statusMsgElem) {
-        if (currentResumingClientId !== clientUploadId) { // If a new resume started
+        if (currentResumingClientId !== clientUploadId) { 
             clearTimeout(resumePollingIntervalId);
             resumePollingIntervalId = null;
             return;
@@ -285,13 +374,11 @@
                 if (data.status === 'completed') {
                     progressBarElem.classList.remove('progress-bar-animated', 'bg-primary');
                     progressBarElem.classList.add('bg-success');
-                    // Final message will be handled by xhr.onload
                     clearTimeout(resumePollingIntervalId);
                     resumePollingIntervalId = null;
                 } else if (data.status === 'error') {
                     progressBarElem.classList.remove('progress-bar-animated', 'bg-primary');
                     progressBarElem.classList.add('bg-danger');
-                    // Final message will be handled by xhr.onload
                     clearTimeout(resumePollingIntervalId);
                     resumePollingIntervalId = null;
                 } else {
