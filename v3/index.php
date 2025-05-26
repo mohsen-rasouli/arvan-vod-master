@@ -29,7 +29,8 @@
                        عملیات مرتبط با ویدیوهای آروان
                     </div>
                     <div class="card-body">
-                        <a href="direct-arvan-uploader.php" class="btn btn-success btn-lg w-100">آپلود مستقیم ویدیو به آروان</a>
+                        <a href="direct-arvan-uploader.php" class="btn btn-success btn-lg mb-3 w-100">آپلود مستقیم ویدیو جدید به آروان</a>
+                        <a href="incomplete-uploads.php" class="btn btn-secondary btn-lg w-100">پیگیری و ادامه آپلودهای ناتمام</a>
                     </div>
                 </div>
 

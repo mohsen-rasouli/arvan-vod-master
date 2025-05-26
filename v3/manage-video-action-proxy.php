@@ -12,7 +12,7 @@ $apiKey = $config['arvan']['api_key']; //
 $arvanApiBaseUrl = $config['arvan']['api_base_url']; //
 
 $requestMethod = $_SERVER['REQUEST_METHOD'];
-$videoId = $_GET['video_id'] ?? null; // Video ID from URL parameter
+$videoId = $_GET['video_id'] ?? null; 
 
 if (!$videoId) {
     http_response_code(400);
@@ -20,7 +20,6 @@ if (!$videoId) {
     exit;
 }
 
-// Get JSON data from the request body for PATCH
 $requestData = [];
 if ($requestMethod === 'PATCH') {
     $jsonInput = file_get_contents('php://input');
@@ -41,10 +40,13 @@ try {
             'Authorization: ' . $apiKey,
             'Accept: application/json',
         ],
+        // Set longer timeouts for API calls
+        CURLOPT_CONNECTTIMEOUT => 20, // Timeout for connection in seconds
+        CURLOPT_TIMEOUT => 60,       // Timeout for the entire cURL operation in seconds
     ];
 
     switch ($requestMethod) {
-        case 'PATCH': // Update Video
+        case 'PATCH': 
             $options[CURLOPT_CUSTOMREQUEST] = 'PATCH';
             array_push($options[CURLOPT_HTTPHEADER], 'Content-Type: application/json');
 
@@ -64,13 +66,12 @@ try {
             $options[CURLOPT_POSTFIELDS] = json_encode($payload, JSON_UNESCAPED_UNICODE);
             break;
 
-        case 'DELETE': // Delete Video
+        case 'DELETE': 
             $options[CURLOPT_CUSTOMREQUEST] = 'DELETE';
-            // No body needed for DELETE
             break;
 
         default:
-            http_response_code(405); // Method Not Allowed
+            http_response_code(405); 
             echo json_encode(['success' => false, 'message' => 'متد HTTP نامعتبر است.']);
             exit;
     }
@@ -87,12 +88,15 @@ try {
         throw new Exception('خطای cURL: ' . $curlError);
     }
 
-    // Arvan typically returns 200 (for PATCH) or 204 (no content, e.g. for DELETE) on success
-    if (($requestMethod === 'PATCH' && $httpCode === 200) || ($requestMethod === 'DELETE' && $httpCode === 204)) {
-        $responseData = json_decode($response, true);
-        if ($httpCode === 204) { // No content, e.g., successful DELETE
-            echo json_encode(['success' => true, 'message' => 'ویدیو با موفقیت حذف شد.', 'data' => null]);
-        } else {
+    $successfulDelete = ($requestMethod === 'DELETE' && $httpCode === 200);
+    $successfulPatch = ($requestMethod === 'PATCH' && $httpCode === 200);
+
+    if ($successfulDelete || $successfulPatch) {
+        $responseData = json_decode($response, true); 
+
+        if ($successfulDelete) {
+            echo json_encode(['success' => true, 'message' => 'ویدیو با موفقیت حذف شد.', 'data' => $responseData['data'] ?? ($responseData ?: null)]);
+        } else { // Successful PATCH
             echo json_encode(['success' => true, 'message' => 'ویدیو با موفقیت بروزرسانی شد.', 'data' => $responseData['data'] ?? $responseData]);
         }
     } else {
@@ -109,7 +113,6 @@ try {
         } elseif ($response) {
              $errorMessage .= ' - ' . $response;
         }
-        // For 404 on DELETE/PATCH, it means video not found
         if ($httpCode === 404) {
             $errorMessage = 'ویدیو با شناسه مشخص شده یافت نشد (خطای 404 از سرور آروان).';
         }
@@ -118,7 +121,9 @@ try {
 
 } catch (Exception $e) {
     $statusCode = $e->getCode() ?: 400;
-    if ($statusCode < 400 || $statusCode > 599) $statusCode = ($requestMethod === 'PATCH' ? 400 : 500); // More specific default
+    if (!is_int($statusCode) || $statusCode < 400 || $statusCode > 599) { // Ensure valid HTTP error code
+         $statusCode = ($requestMethod === 'PATCH' ? 400 : 500); 
+    }
     http_response_code($statusCode);
     echo json_encode(['success' => false, 'message' => $e->getMessage()]);
 }

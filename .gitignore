@@ -27,6 +27,7 @@ yarn-error.log
 **/video/*.flv
 **/video/*.wmv
 **/video/*.webm
+persistent_uploads/
 
 # Data Files
 **/video/data.json
