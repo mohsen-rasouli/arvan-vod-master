@@ -43,7 +43,7 @@
     </div>
     <script>
     const arvanApiBaseUrl = 'https://napi.arvancloud.ir/vod/2.0';
-    const apiKey = 'Apikey 238d40ba-4348-467e-96e3-c0b342266a0b';
+    const apiKey = 'Apikey 238d40ba-xxxx-xxxx-xxxx-c0b342266a0b';
     const channelSelect = document.getElementById('channelSelect');
     const videosArea = document.getElementById('videosArea');
     const statusArea = document.getElementById('statusArea');
